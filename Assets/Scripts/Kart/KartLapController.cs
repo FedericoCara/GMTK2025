@@ -1,191 +1,135 @@
 using System;
-using Fusion;
-using Fusion.Addons.Physics;
+using UnityEngine;
 
-public class KartLapController : KartComponent {
-
+public class KartLapController : KartComponent
+{
     public static event Action<KartLapController> OnRaceCompleted;
 
-    [Networked]
-    public int Lap { get; set; } = 1;
+    public int Lap { get; private set; } = 1;
 
-    [Networked, Capacity(5)]
-    public NetworkArray<int> LapTicks { get; }
+    public float[] LapTimes = new float[5]; // tamaño fijo
 
-    [Networked]
-    public int StartRaceTick { get; set; }
+    public float StartRaceTime { get; private set; }
 
-    [Networked] 
-    public int EndRaceTick { get; set; }
+    public float EndRaceTime { get; private set; }
 
-    [Networked] private int CheckpointIndex { get; set; } = -1;
+    private int CheckpointIndex = -1;
 
     public event Action<int, int> OnLapChanged;
-    public bool HasFinished => EndRaceTick != 0;
-    
+
+    public bool HasFinished => EndRaceTime != 0f;
+
     private KartController Controller => Kart.Controller;
     private GameUI Hud => Kart.Hud;
 
-    private NetworkRigidbody3D _nrb;
-    
-    private ChangeDetector _changeDetector;
+    private Rigidbody _rb;
 
-    private void Awake() {
-        _nrb = GetComponent<NetworkRigidbody3D>();
-    }
+    private bool _raceStarted;
 
-    public override void Spawned() {
-        base.Spawned();
-        
-        _changeDetector = GetChangeDetector(ChangeDetector.Source.SimulationState);
-
-        // lap control is not needed if the gametype does not use laps
-        if ( GameManager.Instance.GameType.IsPracticeMode() ) {
-            enabled = false;
-        } else {
-            Lap = 1;
-        }
-    }
-    
-    public override void Render()
+    private void Awake()
     {
-        foreach (var change in _changeDetector.DetectChanges(this))
-        {
-            switch (change)
-            {
-                case nameof(Lap):
-                    OnLapChangedCallback(this);
-                    break;
-                case nameof(CheckpointIndex):
-                    CheckpointIndexChanged(this);
-                    break;
-            }
-        }
+        _rb = GetComponent<Rigidbody>();
     }
 
-    public override void OnRaceStart() {
+    public override void OnRaceStart()
+    {
         base.OnRaceStart();
-
-        StartRaceTick = Runner.Tick;
+        StartRaceTime = Time.time;
+        _raceStarted = true;
     }
 
-	public override void OnLapCompleted(int lap, bool isFinish)
-	{
-		base.OnLapCompleted(lap, isFinish);
+    public override void OnLapCompleted(int lap, bool isFinish)
+    {
+        base.OnLapCompleted(lap, isFinish);
 
-        if ( isFinish ) {
-            if ( Object.HasInputAuthority ) {
-                // finished race
-                AudioManager.Play("raceFinishedSFX", AudioManager.MixerTarget.SFX);
-                Hud.ShowEndRaceScreen();
-            }
+        if (isFinish)
+        {
+            // Asumo que el jugador siempre tiene autoridad en offline
+            AudioManager.Play("raceFinishedSFX", AudioManager.MixerTarget.SFX);
+            Hud.ShowEndRaceScreen();
 
-            Kart.Controller.RoomUser.HasFinished = true;
-            EndRaceTick = Runner.Tick;
-        } else
-		{
-			if (Object.HasInputAuthority)
-			{
-				AudioManager.Play("newLapSFX", AudioManager.MixerTarget.SFX);
-			}
-		}
+            Controller.RoomUser.HasFinished = true; // adaptá si no usás RoomUser
 
-		OnRaceCompleted?.Invoke(this);
-	}
+            EndRaceTime = Time.time;
+        }
+        else
+        {
+            AudioManager.Play("newLapSFX", AudioManager.MixerTarget.SFX);
+        }
 
-    public void ResetToCheckpoint() {
-        var tgt = CheckpointIndex == -1
+        OnRaceCompleted?.Invoke(this);
+    }
+
+    public void ResetToCheckpoint()
+    {
+        Transform tgt = CheckpointIndex == -1
             ? GameManager.CurrentTrack.finishLine.transform
             : GameManager.CurrentTrack.checkpoints[CheckpointIndex].transform;
 
-        _nrb.Teleport(tgt.position, tgt.rotation);
+        _rb.position = tgt.position;
+        _rb.rotation = tgt.rotation;
+        _rb.velocity = Vector3.zero;
+        _rb.angularVelocity = Vector3.zero;
 
-        //Reset Kart, stop moving/drifting/boosting and clear item! / play SFX  
         Controller.ResetControllerState();
     }
 
-    private static void OnLapChangedCallback(KartLapController changed) {
-        var maxLaps = GameManager.Instance.GameType.lapCount;
-        var isPracticeMode = GameManager.Instance.GameType.IsPracticeMode();
-        var behaviours = changed.GetComponentsInChildren<KartComponent>();
+    private void SetLap(int newLap)
+    {
+        int maxLaps = GameManager.Instance.GameType.lapCount;
+        bool isPracticeMode = GameManager.Instance.GameType.IsPracticeMode();
+        bool isFinish = !isPracticeMode && newLap - 1 == maxLaps;
 
-        var isFinish = !isPracticeMode && changed.Lap - 1 == maxLaps;
-        
-        foreach ( var b in behaviours )
-            b.OnLapCompleted(changed.Lap, isFinish);
+        Lap = newLap;
 
-        changed.OnLapChanged?.Invoke(changed.Lap, maxLaps);
+        var behaviours = GetComponentsInChildren<KartComponent>();
+        foreach (var b in behaviours)
+            b.OnLapCompleted(newLap, isFinish);
+
+        OnLapChanged?.Invoke(newLap, maxLaps);
     }
 
-    private static void CheckpointIndexChanged(KartLapController changed) {
-        var nObject = changed.Object;
-
-        if ( !nObject.HasInputAuthority ) return;
-
-        // -1 means checkpoint is the finish line itself
-        if ( changed.CheckpointIndex != -1 ) {
-            AudioManager.Play("errorSFX", AudioManager.MixerTarget.SFX);
-        }
-    }
-
-    public void ProcessCheckpoint(Checkpoint checkpoint) {
-        
-        //
-        // This is called every frame we are in contact with the finish line, so we need to make double sure that
-        // nothing is getting incremented lots of times per second. Notice we increment 'CheckpointIndex'.
-        //
-        
-        // if Game type is practice
-        if ( GameManager.Instance.GameType.IsPracticeMode() ) {
+    public void ProcessCheckpoint(Checkpoint checkpoint)
+    {
+        if (GameManager.Instance.GameType.IsPracticeMode())
+        {
             CheckpointIndex = checkpoint.index;
             return;
         }
 
-        // if current checkpoint is the one directly after the previous checkpoints
-        if ( CheckpointIndex == checkpoint.index - 1 ) {
+        if (CheckpointIndex == checkpoint.index - 1)
+        {
             CheckpointIndex++;
         }
     }
 
-    public void ProcessFinishLine(FinishLine finishLine) {
-        
-        //
-        // This is called every frame we are in contact with the finish line, so we need to make double sure that
-        // nothing is getting incremented lots of times per second. Notice we reset 'CheckpointIndex' back to -1.
-        //
-        
-        var gameType = GameManager.Instance.GameType;
-        var checkpoints = GameManager.CurrentTrack.checkpoints;
-        
-        if ( gameType.IsPracticeMode() ) {
+    public void ProcessFinishLine(FinishLine finishLine)
+    {
+        if (GameManager.Instance.GameType.IsPracticeMode())
+        {
             CheckpointIndex = -1;
             return;
         }
 
-        // Iff we are on the last checkpoint, proceed to 'complete' a lap. (Or if we are in debug)
-        if ( CheckpointIndex == checkpoints.Length - 1 || finishLine.debug ) {
-            // If we have just started the race we dont want to complete a lap. This is a small workaround.
-            if ( Lap == 0 ) return;
-        
-            // Add our current tick to the LapTicks networked property so we can keep track of race times.
-            LapTicks.Set(Lap - 1, Runner.Tick);
+        var checkpoints = GameManager.CurrentTrack.checkpoints;
 
-            // Increment the lap and reset the checkpoint index to -1. This tells checkpoint code that we have just
-            // touched the finish line.
-            Lap++;
+        if (CheckpointIndex == checkpoints.Length - 1 || finishLine.debug)
+        {
+            if (!_raceStarted) return;
+
+            LapTimes[Lap - 1] = Time.time;
+
+            SetLap(Lap + 1);
             CheckpointIndex = -1;
         }
     }
 
-    /// <summary>
-    /// Returns the total time we have been racing for, in seconds.
-    /// </summary>
-    /// <returns></returns>
-    public float GetTotalRaceTime() {
-        if ( !Runner.IsRunning || StartRaceTick == 0 )
+    public float GetTotalRaceTime()
+    {
+        if (!_raceStarted || StartRaceTime == 0f)
             return 0f;
 
-        var endTick = EndRaceTick == 0 ? Runner.Tick.Raw : EndRaceTick;
-        return TickHelper.TickToSeconds(Runner, endTick - StartRaceTick);
+        float endTime = EndRaceTime == 0f ? Time.time : EndRaceTime;
+        return endTime - StartRaceTime;
     }
 }

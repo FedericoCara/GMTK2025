@@ -1,11 +1,10 @@
-using Fusion;
 using UnityEngine;
 
-public class Track : NetworkBehaviour, ICameraController
+public class Track : MonoBehaviour, ICameraController
 {
 	public static Track Current { get; private set; }
 
-	[Networked] public TickTimer StartRaceTimer { get; set; }
+	public float StartRaceTimer { get; set; }
 
 	public CameraTrack[] introTracks;
 	public Checkpoint[] checkpoints;
@@ -42,15 +41,10 @@ public class Track : NetworkBehaviour, ICameraController
 		StartIntro();
 	}
 
-	public override void Spawned()
+	private void Start()
 	{
-		base.Spawned();
-
-		if (RoomPlayer.Local.IsLeader)
-		{
-			StartRaceTimer = TickTimer.CreateFromSeconds(Runner, sequence.duration + 4f);
-		}
-
+		// Set race timer for offline mode
+		StartRaceTimer = sequence.duration + 4f;
 		sequence.StartSequence();
 	}
 
@@ -59,28 +53,24 @@ public class Track : NetworkBehaviour, ICameraController
 		GameManager.SetTrack(null);
 	}
 
-	public void SpawnPlayer(NetworkRunner runner, RoomPlayer player)
+	public void SpawnPlayer()
 	{
-		var index = RoomPlayer.Players.IndexOf(player);
-		var point = spawnpoints[index];
+		// For offline mode, spawn a single player
+		var point = spawnpoints[0];
 
-		var prefabId = player.KartId;
+		var prefabId = 0; // Default kart
 		var prefab = ResourceManager.Instance.kartDefinitions[prefabId].prefab;
 
 		// Spawn player
-		var entity = runner.Spawn(
-			prefab,
-			point.position,
-			point.rotation,
-			player.Object.InputAuthority
-		);
+		var entity = Instantiate(prefab, point.position, point.rotation);
+		var kartController = entity.GetComponent<KartController>();
+		
+		// Set up local player
+		kartController.RoomUser = null; // No room user in offline mode
+		//kartController.GameState = RoomPlayer.EGameState.GameCutscene;
 
-		entity.Controller.RoomUser = player;
-		player.GameState = RoomPlayer.EGameState.GameCutscene;
-		player.Kart = entity.Controller;
-
-		Debug.Log($"Spawning kart for {player.Username} as {entity.name}");
-		entity.transform.name = $"Kart ({player.Username})";
+		Debug.Log($"Spawning kart for offline player as {entity.name}");
+		entity.transform.name = $"Kart (Offline Player)";
 	}
 
 	private void InitCheckpoints()
@@ -98,20 +88,17 @@ public class Track : NetworkBehaviour, ICameraController
 			introTracks[_currentIntroTrack].endPoint.position,
 			_introIntervalProgress);
 
-		cam.transform.rotation = Quaternion.Slerp(
-			introTracks[_currentIntroTrack].startPoint.rotation,
-			introTracks[_currentIntroTrack].endPoint.rotation,
-			_introIntervalProgress);
+		cam.transform.LookAt(introTracks[_currentIntroTrack].transform);
 
 		_introIntervalProgress += Time.deltaTime * introSpeed;
-		if (_introIntervalProgress > 1)
+
+		if (_introIntervalProgress >= 1f)
 		{
-			_introIntervalProgress -= 1;
+			_introIntervalProgress = 0f;
 			_currentIntroTrack++;
-			if (_currentIntroTrack == introTracks.Length)
+
+			if (_currentIntroTrack >= introTracks.Length)
 			{
-				_currentIntroTrack = 0;
-				_introIntervalProgress = 0;
 				return false;
 			}
 		}
@@ -122,8 +109,6 @@ public class Track : NetworkBehaviour, ICameraController
 	public void StartIntro()
 	{
 		_currentIntroTrack = 0;
-		_introIntervalProgress = 0;
-		AudioManager.PlayMusic("intro");
-		GameManager.GetCameraControl(this);
+		_introIntervalProgress = 0f;
 	}
 }

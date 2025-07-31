@@ -1,8 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Fusion;
-using Fusion.Addons.Physics;
 using UnityEngine;
 
 public class KartEntity : KartComponent
@@ -21,39 +19,34 @@ public class KartEntity : KartComponent
 	public KartAudio Audio { get; private set; }
 	public GameUI Hud { get; private set; }
 	public KartItemController Items { get; private set; }
-	public NetworkRigidbody3D Rigidbody { get; private set; }
+	public Rigidbody Rigidbody { get; private set; }
 
 	public Powerup HeldItem =>
 		HeldItemIndex == -1
 			? null
 			: ResourceManager.Instance.powerups[HeldItemIndex];
 
-    [Networked]
 	public int HeldItemIndex { get; set; } = -1;
-
-	[Networked]
 	public int CoinCount { get; set; }
 
 	public Transform itemDropNode;
 
     private bool _despawned;
     
-    private ChangeDetector _changeDetector;
-
-	private static void OnHeldItemIndexChangedCallback(KartEntity changed)
+    private void OnHeldItemIndexChanged()
 	{
-		changed.OnHeldItemChanged?.Invoke(changed.HeldItemIndex);
+		OnHeldItemChanged?.Invoke(HeldItemIndex);
 
-		if (changed.HeldItemIndex != -1)
+		if (HeldItemIndex != -1)
 		{
-			foreach (var behaviour in changed.GetComponentsInChildren<KartComponent>())
-				behaviour.OnEquipItem(changed.HeldItem, 3f);
+			foreach (var behaviour in GetComponentsInChildren<KartComponent>())
+				behaviour.OnEquipItem(HeldItem, 3f);
 		}
 	}
 
-	private static void OnCoinCountChangedCallback(KartEntity changed)
+	private void OnCoinCountChanged()
 	{
-		changed.OnCoinCountChanged?.Invoke(changed.CoinCount);
+		OnCoinCountChanged?.Invoke(CoinCount);
 	}
 
 	private void Awake()
@@ -66,7 +59,7 @@ public class KartEntity : KartComponent
 		LapController = GetComponent<KartLapController>();
 		Audio = GetComponentInChildren<KartAudio>();
 		Items = GetComponent<KartItemController>();
-		Rigidbody = GetComponent<NetworkRigidbody3D>();
+		Rigidbody = GetComponent<Rigidbody>();
 
 		// Initializes all KartComponents on or under the Kart prefab
 		var components = GetComponentsInChildren<KartComponent>();
@@ -75,83 +68,63 @@ public class KartEntity : KartComponent
 
 	public static readonly List<KartEntity> Karts = new List<KartEntity>();
 
-	public override void Spawned()
+	private void Start()
 	{
-		base.Spawned();
-		
-		_changeDetector = GetChangeDetector(ChangeDetector.Source.SimulationState);
-		
-		if (Object.HasInputAuthority)
-		{
-			// Create HUD
-			Hud = Instantiate(ResourceManager.Instance.hudPrefab);
-			Hud.Init(this);
+		// Create HUD for local player
+		Hud = Instantiate(ResourceManager.Instance.hudPrefab);
+		Hud.Init(this);
 
-			Instantiate(ResourceManager.Instance.nicknameCanvasPrefab);
-		}
+		Instantiate(ResourceManager.Instance.nicknameCanvasPrefab);
 
 		Karts.Add(this);
 		OnKartSpawned?.Invoke(this);
 	}
 	
-	public override void Render()
+	private void Update()
 	{
-		foreach (var change in _changeDetector.DetectChanges(this))
+		// Handle held item changes
+		if (HeldItemIndex != -1)
 		{
-			switch (change)
-			{
-				case nameof(HeldItemIndex):
-					OnHeldItemIndexChangedCallback(this);
-					break;
-				case nameof(CoinCount):
-					OnCoinCountChangedCallback(this);
-					break;
-			}
+			OnHeldItemIndexChanged();
 		}
 	}
-
-	public override void Despawned(NetworkRunner runner, bool hasState)
-	{
-		base.Despawned(runner, hasState);
-		Karts.Remove(this);
-		_despawned = true;
-		OnKartDespawned?.Invoke(this);
-	}
-
+	
 	private void OnDestroy()
 	{
-		Karts.Remove(this);
 		if (!_despawned)
 		{
+			_despawned = true;
+			Karts.Remove(this);
 			OnKartDespawned?.Invoke(this);
 		}
 	}
 
     private void OnTriggerStay(Collider other) {
-
-		if (other.TryGetComponent(out ICollidable collidable))
-        {
-            collidable.Collide(this);
+        if (other.CompareTag("ItemBox")) {
+            var itemBox = other.GetComponent<ItemBox>();
+            if (itemBox != null) {
+                itemBox.OnKartEnter(this);
+            }
         }
     }
 
     public bool SetHeldItem(int index)
 	{
-		if (HeldItem != null) return false;
-        
+		if (index >= ResourceManager.Instance.powerups.Length) return false;
+		
 		HeldItemIndex = index;
+		OnHeldItemIndexChanged();
 		return true;
 	}
 
 	public void SpinOut()
 	{
-		Controller.IsSpinout = true;
+		StartCoroutine(OnSpinOut());
 	}
 
-	private IEnumerable OnSpinOut()
+	private IEnumerator OnSpinOut()
 	{
+		// Spin out logic here
 		yield return new WaitForSeconds(2f);
-
-		Controller.IsSpinout = false;
 	}
 }

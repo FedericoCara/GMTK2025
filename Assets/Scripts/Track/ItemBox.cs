@@ -1,78 +1,81 @@
 using UnityEngine;
-using Fusion;
 using Random = UnityEngine.Random;
 
-public class ItemBox : NetworkBehaviour, ICollidable {
+public class ItemBox : MonoBehaviour, ICollidable {
     
     public GameObject model;
     public ParticleSystem breakParticle;
     public float cooldown = 5f;
     public Transform visuals;
 
-    [Networked] public KartEntity Kart { get; set; }
-    [Networked] public TickTimer DisabledTimer { get; set; }
+    public KartEntity Kart { get; set; }
+    public float DisabledTimer { get; set; }
     
-    private ChangeDetector _changeDetector;
+    private bool isDisabled = false;
 
-    public override void Spawned()
+    private void Start()
     {
-        _changeDetector = GetChangeDetector(ChangeDetector.Source.SimulationState);
+        UpdateVisuals();
     }
 
-    public override void Render()
+    private void Update()
     {
-        foreach (var change in _changeDetector.DetectChanges(this))
+        // Handle cooldown timer
+        if (isDisabled)
         {
-            switch (change)
+            DisabledTimer -= Time.deltaTime;
+            if (DisabledTimer <= 0f)
             {
-                case nameof(Kart):
-                    OnKartChanged(this);
-                    break;
+                isDisabled = false;
+                Kart = null;
+                UpdateVisuals();
             }
         }
     }
 
     public bool Collide(KartEntity kart) {
-        if ( kart != null && DisabledTimer.ExpiredOrNotRunning(Runner) ) {
+        if (kart != null && !isDisabled) {
             Kart = kart;
-            DisabledTimer = TickTimer.CreateFromSeconds(Runner, cooldown);
+            DisabledTimer = cooldown;
+            isDisabled = true;
+            
             var powerUp = GetRandomPowerup();
             Kart.SetHeldItem(powerUp);
+            
+            UpdateVisuals();
         }
 
         return true;
     }
 
-    private static void OnKartChanged(ItemBox changed) { changed.OnKartChanged(); }
-    private void OnKartChanged() {
-        
-        visuals.gameObject.SetActive(Kart == null);
+    private void UpdateVisuals() {
+        if (visuals != null)
+        {
+            visuals.gameObject.SetActive(Kart == null);
+        }
 
-        if ( Kart == null )
-            return;
+        if (Kart != null)
+        {
+            AudioManager.PlayAndFollow(
+                Kart.HeldItem != null ? "itemCollectSFX" : "itemWasteSFX",
+                transform,
+                AudioManager.MixerTarget.SFX
+            );
 
-        AudioManager.PlayAndFollow(
-            Kart.HeldItem != null ? "itemCollectSFX" : "itemWasteSFX",
-            transform,
-            AudioManager.MixerTarget.SFX
-        );
-
-        breakParticle.Play();
+            if (breakParticle != null)
+            {
+                breakParticle.Play();
+            }
+        }
     }
 
-    public override void FixedUpdateNetwork() {
-        base.FixedUpdateNetwork();
-        
-        if (DisabledTimer.ExpiredOrNotRunning(Runner) && Kart != null) {
-            Kart = null;
-        }
+    public void OnKartEnter(KartEntity kart)
+    {
+        Collide(kart);
     }
 
     private int GetRandomPowerup() {
         var powerUps = ResourceManager.Instance.powerups;
-        var seed = Runner.Tick;
-        
-        Random.InitState(seed);
         
         return Random.Range(0, powerUps.Length);
     }

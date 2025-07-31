@@ -1,14 +1,12 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Fusion;
-using Fusion.Sockets;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class KartInput : KartComponent, INetworkRunnerCallbacks
+public class KartInput : KartComponent
 {
-	public struct NetworkInputData : INetworkInput
+	public struct InputData
 	{
 		public const uint ButtonAccelerate = 1 << 0;
 		public const uint ButtonReverse = 1 << 1;
@@ -49,12 +47,11 @@ public class KartInput : KartComponent, INetworkRunnerCallbacks
 
     private bool _useItemPressed;
 	private bool _driftPressed;
+	private InputData _currentInput;
 
-	public override void Spawned()
+	public override void Init(KartEntity kart)
 	{
-		base.Spawned();
-
-		Runner.AddCallbacks(this);
+		base.Init(kart);
 
 		accelerate = accelerate.Clone();
 		reverse = reverse.Clone();
@@ -77,14 +74,6 @@ public class KartInput : KartComponent, INetworkRunnerCallbacks
 		pause.started += PausePressed;
 	}
 
-	public override void Despawned(NetworkRunner runner, bool hasState)
-	{
-        base.Despawned(runner, hasState);
-        
-		DisposeInputs();
-		Runner.RemoveCallbacks(this);
-	}
-
 	private void OnDestroy()
 	{
 		DisposeInputs();
@@ -99,10 +88,6 @@ public class KartInput : KartComponent, INetworkRunnerCallbacks
 		lookBehind.Dispose();
 		useItem.Dispose();
 		pause.Dispose();
-		// disposal should handle these
-		//useItem.started -= UseItemPressed;
-		//drift.started -= DriftPressed;
-		//pause.started -= PausePressed;
 	}
 
     private void UseItemPressed(InputAction.CallbackContext ctx) => _useItemPressed = true;
@@ -110,52 +95,37 @@ public class KartInput : KartComponent, INetworkRunnerCallbacks
 
     private void PausePressed(InputAction.CallbackContext ctx)
 	{
-		if (Kart.Controller.CanDrive) InterfaceManager.Instance.OpenPauseMenu();
+		// Handle pause functionality
+		Debug.Log("Pause pressed");
 	}
 
-	/// This isn't networked, so is not inside the <see cref="NetworkInputData"/> struct
+	public bool IsAcceleratePressed => ReadBool(accelerate);
+	public bool IsReversePressed => ReadBool(reverse);
+	public bool IsDriftPressed => ReadBool(drift);
+	public float SteerInput => ReadFloat(steer);
 	public bool IsLookBehindPressed => ReadBool(lookBehind);
 
 	private static bool ReadBool(InputAction action) => action.ReadValue<float>() != 0;
 	private static float ReadFloat(InputAction action) => action.ReadValue<float>();
 
-    public void OnInput(NetworkRunner runner, NetworkInput input) {
-        gamepad = Gamepad.current;
+    private void Update()
+    {
+        // Update input data for offline mode
+        _currentInput.Buttons = 0;
+        _currentInput.OneShots = 0;
 
-        var userInput = new NetworkInputData();
+        if (IsAcceleratePressed) _currentInput.Buttons |= InputData.ButtonAccelerate;
+        if (IsReversePressed) _currentInput.Buttons |= InputData.ButtonReverse;
+        if (IsDriftPressed) _currentInput.Buttons |= InputData.ButtonDrift;
+        if (IsLookBehindPressed) _currentInput.Buttons |= InputData.ButtonLookbehind;
+        if (_useItemPressed) _currentInput.Buttons |= InputData.UseItem;
 
-        if ( ReadBool(accelerate) ) userInput.Buttons |= NetworkInputData.ButtonAccelerate;
-        if ( ReadBool(reverse) ) userInput.Buttons |= NetworkInputData.ButtonReverse;
-        if ( ReadBool(drift) ) userInput.Buttons |= NetworkInputData.ButtonDrift;
-        if ( ReadBool(lookBehind) ) userInput.Buttons |= NetworkInputData.ButtonLookbehind;
+        _currentInput.Steer = SteerInput;
 
-        if ( _driftPressed ) userInput.OneShots |= NetworkInputData.ButtonDrift;
-        if ( _useItemPressed ) userInput.OneShots |= NetworkInputData.UseItem;
-
-        userInput.Steer = ReadFloat(steer);
-
-        input.Set(userInput);
-
-        _driftPressed = false;
-        _useItemPressed = false;
+        // Reset one-shot inputs
+        if (_useItemPressed) _useItemPressed = false;
+        if (_driftPressed) _driftPressed = false;
     }
 
-    public void OnObjectExitAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player) { }
-    public void OnObjectEnterAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player) { }
-    public void OnPlayerJoined(NetworkRunner runner, PlayerRef player) { }
-	public void OnPlayerLeft(NetworkRunner runner, PlayerRef player) { }
-	public void OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input) { }
-	public void OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason) { }
-	public void OnConnectedToServer(NetworkRunner runner) { }
-	public void OnDisconnectedFromServer(NetworkRunner runner, NetDisconnectReason reason) { }
-	public void OnConnectRequest(NetworkRunner runner, NetworkRunnerCallbackArgs.ConnectRequest request, byte[] token) { }
-	public void OnConnectFailed(NetworkRunner runner, NetAddress remoteAddress, NetConnectFailedReason reason) { }
-	public void OnUserSimulationMessage(NetworkRunner runner, SimulationMessagePtr message) { }
-	public void OnSessionListUpdated(NetworkRunner runner, List<SessionInfo> sessionList) { }
-	public void OnCustomAuthenticationResponse(NetworkRunner runner, Dictionary<string, object> data) { }
-	public void OnHostMigration(NetworkRunner runner, HostMigrationToken hostMigrationToken) { }
-	public void OnReliableDataReceived(NetworkRunner runner, PlayerRef player, ReliableKey key, ArraySegment<byte> data) { }
-	public void OnReliableDataProgress(NetworkRunner runner, PlayerRef player, ReliableKey key, float progress) { }
-	public void OnSceneLoadDone(NetworkRunner runner) { }
-	public void OnSceneLoadStart(NetworkRunner runner) { }
+    public InputData GetInput() => _currentInput;
 }

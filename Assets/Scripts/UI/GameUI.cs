@@ -74,7 +74,7 @@ public class GameUI : MonoBehaviour
 			coinCountContainer.SetActive(false);
 		}
 
-		continueEndButton.gameObject.SetActive(kart.Object.HasStateAuthority);
+		continueEndButton.gameObject.SetActive(true);
 
 		kart.OnHeldItemChanged += index =>
 		{
@@ -128,13 +128,13 @@ public class GameUI : MonoBehaviour
 
 	private void Update()
 	{
-		if (!Kart || !Kart.LapController.Object || !Kart.LapController.Object.IsValid)
+		if (!Kart || !Kart.LapController || !Kart.LapController)
 			return;
 
-		if (!_startedCountdown && Track.Current != null && Track.Current.StartRaceTimer.IsRunning)
+		if (!_startedCountdown && Track.Current != null && Track.Current.StartRaceTimer > 0f)
 		{
-			var remainingTime = Track.Current.StartRaceTimer.RemainingTime(Kart.Runner);
-			if (remainingTime != null && remainingTime <= 3.0f)
+			var remainingTime = Track.Current.StartRaceTimer - Time.time;
+			if (remainingTime <= 3.0f)
 			{
 				_startedCountdown = true;
 				HideIntro();
@@ -167,7 +167,7 @@ public class GameUI : MonoBehaviour
 
 	private void UpdateBoostBar()
 	{
-		if (!KartController.Object || !KartController.Object.IsValid)
+		if (KartController == null)
 			return;
 		
 		var driftIndex = KartController.DriftTierIndex;
@@ -191,27 +191,28 @@ public class GameUI : MonoBehaviour
 
 	private void UpdateLapTimes()
 	{
-		if (!Kart.LapController.Object || !Kart.LapController.Object.IsValid)
+		if (!Kart.LapController)
 			return;
-		var lapTimes = Kart.LapController.LapTicks;
+
+		var lapTimes = Kart.LapController.LapTimes; // Asumo que ahora guardás en segundos o float
+
 		for (var i = 0; i < Mathf.Min(lapTimes.Length, lapTimeTexts.Length); i++)
 		{
-			var lapTicks = lapTimes.Get(i);
+			var lapTime = lapTimes[i];
 
-			if (lapTicks == 0)
+			if (lapTime <= 0f)
 			{
 				lapTimeTexts[i].text = "";
 			}
 			else
 			{
-				var previousTicks = i == 0
-					? Kart.LapController.StartRaceTick
-					: lapTimes.Get(i - 1);
+				var previousTime = i == 0
+					? Kart.LapController.StartRaceTime
+					: lapTimes[i - 1];
 
-				var deltaTicks = lapTicks - previousTicks;
-				var time = TickHelper.TickToSeconds(Kart.Runner, deltaTicks);
+				var deltaTime = lapTime - previousTime;
 
-				SetLapTimeText(time, i);
+				SetLapTimeText(deltaTime, i);
 			}
 		}
 

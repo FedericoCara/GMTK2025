@@ -1,8 +1,7 @@
 using System;
-using Fusion;
 using UnityEngine;
 
-public class GameManager : NetworkBehaviour
+public class GameManager : MonoBehaviour
 {
 	public static event Action<GameManager> OnLobbyDetailsUpdated;
 
@@ -10,7 +9,6 @@ public class GameManager : NetworkBehaviour
 	public static int GroundLayer => Instance.groundLayer;
 	[SerializeField, Layer] private int kartLayer;
 	public static int KartLayer => Instance.kartLayer;
-
 
 	public new Camera camera;
 	private ICameraController cameraController;
@@ -25,18 +23,16 @@ public class GameManager : NetworkBehaviour
 	public string TrackName => ResourceManager.Instance.tracks[TrackId].trackName;
 	public string ModeName => ResourceManager.Instance.gameTypes[GameTypeId].modeName;
 
-	[Networked] public NetworkString<_32> LobbyName { get; set; }
-	[Networked] public int TrackId { get; set; }
-	[Networked] public int GameTypeId { get; set; }
-	[Networked] public int MaxUsers { get; set; }
+	public string LobbyName { get; set; }
+	public int TrackId { get; set; }
+	public int GameTypeId { get; set; }
+	public int MaxUsers { get; set; }
 
-	private static void OnLobbyDetailsChangedCallback(GameManager changed)
+	private void OnLobbyDetailsChanged()
 	{
-		OnLobbyDetailsUpdated?.Invoke(changed);
+		OnLobbyDetailsUpdated?.Invoke(this);
 	}
 	
-	private ChangeDetector _changeDetector;
-
 	private void Awake()
 	{
 		if (Instance)
@@ -48,35 +44,15 @@ public class GameManager : NetworkBehaviour
 		DontDestroyOnLoad(gameObject);
 	}
 
-	public override void Spawned()
+	private void Start()
 	{
-		base.Spawned();
+		// Set default values for offline mode
+		LobbyName = "Offline Game";
+		TrackId = 0;
+		GameTypeId = 0;
+		MaxUsers = 1;
 		
-		_changeDetector = GetChangeDetector(ChangeDetector.Source.SimulationState);
-
-		if (Object.HasStateAuthority)
-		{
-			LobbyName = ServerInfo.LobbyName;
-			TrackId = ServerInfo.TrackId;
-			GameTypeId = ServerInfo.GameMode;
-			MaxUsers = ServerInfo.MaxUsers;
-		}
-	}
-	
-	public override void Render()
-	{
-		foreach (var change in _changeDetector.DetectChanges(this))
-		{
-			switch (change)
-			{
-				case nameof(LobbyName):
-				case nameof(TrackId):
-				case nameof(GameTypeId):
-				case nameof(MaxUsers):
-					OnLobbyDetailsChangedCallback(this);
-					break;
-			}
-		}
+		OnLobbyDetailsChanged();
 	}
 	
 	private void LateUpdate()

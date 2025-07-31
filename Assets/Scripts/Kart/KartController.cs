@@ -30,54 +30,66 @@ public class KartController : KartComponent
 
 	public Rigidbody Rigidbody;
 
-	public bool IsBumped => !BumpTimer.ExpiredOrNotRunning(Runner);
-	public bool IsBackfire => !BackfireTimer.ExpiredOrNotRunning(Runner);
-	public bool IsHopping => !HopTimer.ExpiredOrNotRunning(Runner);
+	public bool IsBumped => !(Time.time < bumpTimer);
+	public bool IsBackfire => !(Time.time < BackfireTimer);
+	public bool IsHopping => !(Time.time < HopTimer);
 	public bool CanDrive => HasStartedRace && !HasFinishedRace && !IsSpinout && !IsBumped && !IsBackfire;
 	public bool HasFinishedRace => Kart.LapController.EndRaceTick != 0;
 	public bool HasStartedRace => Kart.LapController.StartRaceTick != 0;
-	public float BoostTime => BoostEndTick == -1 ? 0f : (BoostEndTick - Runner.Tick) * Runner.DeltaTime;
+	public float BoostTime => Math.Abs(BoostEndTime - (-1f)) < .01f ? 0f : BoostEndTime - Time.time;
 	private float RealSpeed => transform.InverseTransformDirection(Rigidbody.linearVelocity).z;
 	public bool IsDrifting => IsDriftingLeft || IsDriftingRight;
 	public bool IsBoosting => BoostTierIndex != 0;
 	public bool IsOffroad => IsGrounded && GroundResistance >= 0.2f;
-	public float DriftTime => (Runner.Tick - DriftStartTick) * Runner.DeltaTime;
+	public float DriftStartTime; // reemplaza DriftStartTick
 
-	[Networked] public float MaxSpeed { get; set; }
+	public float DriftTime => Time.time - DriftStartTime;
 
-	[Networked]
-	public int BoostTierIndex { get; set; }
+	 public float MaxSpeed { get; set; }
 
-	[Networked] public TickTimer BoostpadCooldown { get; set; }
+	
+	private int boostTierIndex;
 
-	[Networked]
+	public int BoostTierIndex
+	{
+		get => boostTierIndex;
+		set
+		{
+			if (boostTierIndex != value)
+			{
+				boostTierIndex = value;
+				OnBoostTierIndexChanged?.Invoke(boostTierIndex);
+			}
+		}
+	}
+
+	public float BoostpadCooldown { get; set; }
+
+	
 	public int DriftTierIndex { get; set; } = -1;
 
-	[Networked] public NetworkBool IsGrounded { get; set; }
-	[Networked] public float GroundResistance { get; set; }
-	[Networked] public int BoostEndTick { get; set; } = -1;
+	 public NetworkBool IsGrounded { get; set; }
+	 public float GroundResistance { get; set; }
+	public float BoostEndTime = -1f;
 
-	[Networked]
+	
 	public NetworkBool IsSpinout { get; set; }
 
-	[Networked] public float TireYaw { get; set; }
-	[Networked] public RoomPlayer RoomUser { get; set; }
-	[Networked] public NetworkBool IsDriftingLeft { get; set; }
-	[Networked] public NetworkBool IsDriftingRight { get; set; }
-	[Networked] public int DriftStartTick { get; set; }
+	 public float TireYaw { get; set; }
+	 public RoomPlayer RoomUser { get; set; }
+	 public NetworkBool IsDriftingLeft { get; set; }
+	 public NetworkBool IsDriftingRight { get; set; }
+	 public int DriftStartTick { get; set; }
 
-	[Networked]
-	public TickTimer BackfireTimer { get; set; }
+	public float BackfireTimer { get; set; }
 
-	[Networked]
-	public TickTimer BumpTimer { get; set; }
+	public float BumpTimer { get; set; }
 
-	[Networked]
-	public TickTimer HopTimer { get; set; }
+	public float HopTimer = 1;
 
-	[Networked] public float AppliedSpeed { get; set; }
+	 public float AppliedSpeed { get; set; }
 
-	[Networked] private KartInput.NetworkInputData Inputs { get; set; }
+	private KartInput.InputData Inputs;
 
 	public event Action<int> OnDriftTierIndexChanged;
 	public event Action<int> OnBoostTierIndexChanged;
@@ -86,11 +98,11 @@ public class KartController : KartComponent
 	public event Action<bool> OnHopChanged;
 	public event Action<bool> OnBackfiredChanged;
 
-	[Networked] private float SteerAmount { get; set; }
-	[Networked] private int AcceleratePressedTick { get; set; }
-	[Networked] private bool IsAccelerateThisFrame { get; set; }
+	 private float SteerAmount { get; set; }
+	public float AcceleratePressedTime = -1f;
+	 private bool IsAccelerateThisFrame { get; set; }
 
-	private ChangeDetector _changeDetector;
+	private const float TOLERANCE = 0.01f;
 
 	private static void OnIsBackfireChangedCallback(KartController changed) =>
 		changed.OnBackfiredChanged?.Invoke(changed.IsBackfire);
@@ -115,10 +127,9 @@ public class KartController : KartComponent
 		collider = GetComponent<SphereCollider>();
 	}
 
-	public override void Spawned()
+	public void Start()
 	{
-		base.Spawned();
-		_changeDetector = GetChangeDetector(ChangeDetector.Source.SimulationState);
+		//_changeDetector = GetChangeDetector(ChangeDetector.Source.SimulationState);
 		MaxSpeed = maxSpeedNormal;
 	}
 
@@ -127,85 +138,16 @@ public class KartController : KartComponent
 		GroundNormalRotation();
 		UpdateTireRotation();
 
-		if (Object.HasInputAuthority && CanDrive)
+		if (CanDrive)
 		{
 			if (Kart.Input.gamepad != null)
 			{
 				Kart.Input.gamepad.SetMotorSpeeds(IsOffroad ? AppliedSpeed / MaxSpeed : 0, 0);
 			}
 		}
-	}
-
-	private void OnCollisionStay(Collision collision)
-	{
-		//
-		// OnCollisionEnter and OnCollisionExit are not reliable when trying to predict collisions, however we can
-		// use OnCollisionStay reliably. This means we have to make sure not to run code every frame
-		//
-
-		var layer = collision.gameObject.layer;
-
-		// We don't want to run any of this code if we're already in the process of bumping
-		if (IsBumped) return;
-
-		if (layer == GameManager.GroundLayer) return;
-		if (layer == GameManager.KartLayer && collision.gameObject.TryGetComponent(out KartEntity otherKart))
-		{
-			//
-			// Collision with another kart - if we are going slower than them, then we should bump!  
-			//
-
-			if (AppliedSpeed < otherKart.Controller.AppliedSpeed)
-			{
-				BumpTimer = TickTimer.CreateFromSeconds(Runner, 0.4f);
-			}
-		}
-		else
-		{
-			//
-			// Collision with a wall of some sort - We should get the angle impact and apply a force backwards, only if 
-			// we are going above 'speedToDrift' speed.
-			//
-			if (RealSpeed > speedToDrift)
-			{
-				var contact = collision.GetContact(0);
-				var dot = Mathf.Max(0.25f, Mathf.Abs(Vector3.Dot(contact.normal, Rigidbody.transform.forward)));
-				Rigidbody.AddForceAtPosition(contact.normal * AppliedSpeed * dot, contact.point, ForceMode.VelocityChange);
-
-				BumpTimer = TickTimer.CreateFromSeconds(Runner, 0.8f * dot);
-			}
-		}
-	}
-
-	public override void FixedUpdateNetwork()
-	{
-		base.FixedUpdateNetwork();
-
-		if (GetInput(out KartInput.NetworkInputData input))
-		{
-			//
-			// Copy our inputs that we have received, to a [Networked] property, so other clients can predict using our
-			// tick-aligned inputs. This is the core of the Client Prediction system.
-			//
-			Inputs = input;
-		}
-
-		if (CanDrive)
-			Move(Inputs);
-		else
-			RefreshAppliedSpeed();
-
-		HandleStartRace();
-		SpinOut(Inputs);
-		Boost(Inputs);
-		Drift(Inputs);
-		Steer(Inputs);
-		UpdateTireYaw(Inputs);
-		UseItems(Inputs);
-	}
-
-	public override void Render()
-	{
+		/*
+		//ex-render
+		
 		foreach (var change in _changeDetector.DetectChanges(this))
 		{
 			switch (change)
@@ -229,12 +171,72 @@ public class KartController : KartComponent
 					OnIsHopChangedCallback(this);
 					break;
 			}
+		}*/
+	}
+
+	private void OnCollisionStay(Collision collision)
+	{
+		//
+		// OnCollisionEnter and OnCollisionExit are not reliable when trying to predict collisions, however we can
+		// use OnCollisionStay reliably. This means we have to make sure not to run code every frame
+		//
+
+		var layer = collision.gameObject.layer;
+
+		// We don't want to run any of this code if we're already in the process of bumping
+		if (IsBumped) return;
+
+		if (layer == GameManager.GroundLayer) return;
+		if (layer == GameManager.KartLayer && collision.gameObject.TryGetComponent(out KartEntity otherKart))
+		{
+			//
+			// Collision with another kart - if we are going slower than them, then we should bump!  
+			//
+
+			if (AppliedSpeed < otherKart.Controller.AppliedSpeed)
+			{
+				BumpTimer = Time.time + 0.4f;
+			}
+		}
+		else
+		{
+			//
+			// Collision with a wall of some sort - We should get the angle impact and apply a force backwards, only if 
+			// we are going above 'speedToDrift' speed.
+			//
+			if (RealSpeed > speedToDrift)
+			{
+				var contact = collision.GetContact(0);
+				var dot = Mathf.Max(0.25f, Mathf.Abs(Vector3.Dot(contact.normal, Rigidbody.transform.forward)));
+				Rigidbody.AddForceAtPosition(contact.normal * AppliedSpeed * dot, contact.point, ForceMode.VelocityChange);
+
+				BumpTimer = Time.time + 0.8f * dot;
+			}
 		}
 	}
 
-	private void UseItems(KartInput.NetworkInputData inputs)
+	private void FixedUpdate()
 	{
-		if (inputs.IsDownThisFrame(KartInput.NetworkInputData.UseItem))
+		// Leer inputs desde el componente KartInput
+		Inputs = Kart.Input.GetInput();
+
+		if (CanDrive)
+			Move(Inputs);
+		else
+			RefreshAppliedSpeed();
+
+		HandleStartRace();
+		SpinOut(Inputs);
+		Boost(Inputs);
+		Drift(Inputs);
+		Steer(Inputs);
+		UpdateTireYaw(Inputs);
+		UseItems(Inputs);
+	}
+
+	private void UseItems(KartInput.InputData inputs)
+	{
+		if (inputs.IsDownThisFrame(KartInput.InputData.UseItem))
 		{
 			Kart.Items.UseItem();
 		}
@@ -242,7 +244,7 @@ public class KartController : KartComponent
 
 	private void HandleStartRace()
 	{
-		if (!HasStartedRace && Track.Current != null && Track.Current.StartRaceTimer.Expired(Runner))
+		if (!HasStartedRace && Track.Current != null && Track.Current.StartRaceTimer < Time.time)
 		{
 			var components = GetComponentsInChildren<KartComponent>();
 			foreach (var component in components) component.OnRaceStart();
@@ -254,69 +256,68 @@ public class KartController : KartComponent
 	/// and then calculate how long we have been pressing that button elsewhere.
 	/// </summary>
 	/// <param name="input"></param>
-	private void SpinOut(KartInput.NetworkInputData input)
+	private void SpinOut(KartInput.InputData input)
 	{
-		var isAccelerate = input.IsDown(KartInput.NetworkInputData.ButtonAccelerate);
+		var isAccelerate = input.IsAccelerate;
 
 		if (isAccelerate && !IsAccelerateThisFrame)
 		{
-			AcceleratePressedTick = Runner.Tick;
+			AcceleratePressedTime = Time.time;
 		}
 
-		if (AcceleratePressedTick != -1 && !isAccelerate)
+		if (Math.Abs(AcceleratePressedTime - (-1)) > TOLERANCE && !isAccelerate)
 		{
-			AcceleratePressedTick = -1;
+			AcceleratePressedTime = -1;
 		}
 
 		IsAccelerateThisFrame = isAccelerate;
 	}
 
+	private float bumpTimer = -1f;
+
+
 	public override void OnRaceStart()
 	{
 		base.OnRaceStart();
 
-		if (Object.HasInputAuthority)
-		{
-			AudioManager.PlayMusic(Track.Current.music);
-		}
+		// Siempre autoridad en offline
+		AudioManager.PlayMusic(Track.Current.music);
 
-		//
-		// If the acceleration button is held down OnRaceStart, then we can apply either a boost (if they were quick
-		// enough), or stall them (if they were too slow!)
-		//
-		if (AcceleratePressedTick != -1)
+		// Si el botón de acelerar estaba presionado antes de la largada
+		if (AcceleratePressedTime != -1f)
 		{
-			var tickDiff = Runner.Tick - AcceleratePressedTick;
-			var time = tickDiff * Runner.DeltaTime;
+			float timeHeld = Time.time - AcceleratePressedTime;
 
-			if (time < 0.15f)
-				GiveBoost(false);
-			else if (time < 0.3f)
+			if (timeHeld < 0.15f)
 			{
-				BackfireTimer = TickTimer.CreateFromSeconds(Runner, 0.8f);
+				GiveBoost(false);
+			}
+			else if (timeHeld < 0.3f)
+			{
+				BackfireTimer = Time.time + 0.8f; // dura 0.8 segundos
 			}
 		}
 	}
 
-	private void Move(KartInput.NetworkInputData input)
+	private void Move(KartInput.InputData input)
 	{
 		if (input.IsAccelerate)
 		{
-			AppliedSpeed = Mathf.Lerp(AppliedSpeed, MaxSpeed, acceleration * Runner.DeltaTime);
+			AppliedSpeed = Mathf.Lerp(AppliedSpeed, MaxSpeed, acceleration * Time.fixedDeltaTime);
 		}
 		else if (input.IsReverse)
 		{
-			AppliedSpeed = Mathf.Lerp(AppliedSpeed, -reverseSpeed, acceleration * Runner.DeltaTime);
+			AppliedSpeed = Mathf.Lerp(AppliedSpeed, -reverseSpeed, acceleration * Time.fixedDeltaTime);
 		}
 		else
 		{
-			AppliedSpeed = Mathf.Lerp(AppliedSpeed, 0, deceleration * Runner.DeltaTime);
+			AppliedSpeed = Mathf.Lerp(AppliedSpeed, 0, deceleration * Time.fixedDeltaTime);
 		}
 
 		var resistance = 1 - (IsGrounded ? GroundResistance : 0);
 		if (resistance < 1)
 		{
-			AppliedSpeed = Mathf.Lerp(AppliedSpeed, AppliedSpeed * resistance, Runner.DeltaTime * (IsDrifting ? 8 : 2));
+			AppliedSpeed = Mathf.Lerp(AppliedSpeed, AppliedSpeed * resistance, Time.fixedDeltaTime * (IsDrifting ? 8 : 2));
 		}
 
 		// transform.forward is not reliable when using NetworkedRigidbody - instead use: NetworkRigidbody.Rigidbody.rotation * Vector3.forward
@@ -326,24 +327,24 @@ public class KartController : KartComponent
 	}
 
 
-	private void Steer(KartInput.NetworkInputData input)
+	private void Steer(KartInput.InputData input)
 	{
 		var steerTarget = GetSteerTarget(input);
 
 		if (SteerAmount != steerTarget)
 		{
 			var steerLerp = Mathf.Abs(SteerAmount) < Mathf.Abs(steerTarget) ? steerAcceleration : steerDeceleration;
-			SteerAmount = Mathf.Lerp(SteerAmount, steerTarget, Runner.DeltaTime * steerLerp);
+			SteerAmount = Mathf.Lerp(SteerAmount, steerTarget, Time.fixedDeltaTime * steerLerp);
 		}
 
 		if (IsDrifting)
 		{
 			model.localEulerAngles = LerpAxis(Axis.Y, model.localEulerAngles, SteerAmount * 2,
-				driftRotationLerpFactor * Runner.DeltaTime);
+				driftRotationLerpFactor * Time.fixedDeltaTime);
 		}
 		else
 		{
-			model.localEulerAngles = LerpAxis(Axis.Y, model.localEulerAngles, 0, 6 * Runner.DeltaTime);
+			model.localEulerAngles = LerpAxis(Axis.Y, model.localEulerAngles, 0, 6 * Time.fixedDeltaTime);
 		}
 
 		if (CanDrive)
@@ -352,14 +353,14 @@ public class KartController : KartComponent
 				Vector3.Lerp(
 					Rigidbody.rotation.eulerAngles,
 					Rigidbody.rotation.eulerAngles + Vector3.up * SteerAmount,
-					3 * Runner.DeltaTime)
+					3 * Time.fixedDeltaTime)
 			);
 
 			Rigidbody.MoveRotation(rot);
 		}
 	}
 
-	private float GetSteerTarget(KartInput.NetworkInputData input)
+	private float GetSteerTarget(KartInput.InputData input)
 	{
 		var steerFactor = steeringCurve.Evaluate(Mathf.Abs(RealSpeed) / maxSpeedNormal) * maxSteerStrength *
 		                  Mathf.Sign(RealSpeed);
@@ -375,14 +376,14 @@ public class KartController : KartComponent
 		return input.Steer * steerFactor;
 	}
 
-	private void Drift(KartInput.NetworkInputData input)
+	private void Drift(KartInput.InputData input)
 	{
 		var startDrift = input.IsDriftPressedThisFrame && CanDrive && !IsDrifting;
 		if (startDrift && IsGrounded)
 		{
 			StartDrifting(input);
-			DriftStartTick = Runner.Tick;
-			HopTimer = TickTimer.CreateFromSeconds(Runner, 0.367f);
+			DriftStartTime = Time.time;
+			HopTimer = Time.time + 0.367f;
 		}
 
 		if (IsDrifting)
@@ -403,14 +404,14 @@ public class KartController : KartComponent
 	/// Handles when a boost is applied.
 	/// </summary>
 	/// <param name="input"></param>
-	private void Boost(KartInput.NetworkInputData input)
+	private void Boost(KartInput.InputData input)
 	{
 		if (BoostTime > 0)
 		{
 			MaxSpeed = maxSpeedBoosting;
-			AppliedSpeed = Mathf.Lerp(AppliedSpeed, MaxSpeed, Runner.DeltaTime);
+			AppliedSpeed = Mathf.Lerp(AppliedSpeed, MaxSpeed, Time.deltaTime);
 		}
-		else if (BoostEndTick != -1)
+		else if (Math.Abs(BoostEndTime - (-1)) > TOLERANCE)
 		{
 			StopBoosting();
 		}
@@ -446,7 +447,7 @@ public class KartController : KartComponent
 		}
 	}
 
-	private void UpdateTireYaw(KartInput.NetworkInputData input)
+	private void UpdateTireYaw(KartInput.InputData input)
 	{
 		TireYaw = input.Steer * maxSteerStrength;
 	}
@@ -467,7 +468,7 @@ public class KartController : KartComponent
 
 	// One-Shot Functions
 
-	private void StartDrifting(KartInput.NetworkInputData input)
+	private void StartDrifting(KartInput.InputData input)
 	{
 		if (AppliedSpeed < speedToDrift || input.Steer == 0)
 		{
@@ -482,10 +483,10 @@ public class KartController : KartComponent
 	private void StopDrifting()
 	{
 		BoostTierIndex = DriftTierIndex == -1 ? 0 : DriftTierIndex;
-		BoostEndTick = BoostTierIndex == 0
+		BoostEndTime = BoostTierIndex == 0
 			? -1
-			: Runner.Tick +
-			  (int) (driftTiers[BoostTierIndex].boostDuration / Runner.DeltaTime);
+			: Time.time +
+			  (int) (driftTiers[BoostTierIndex].boostDuration / Time.fixedDeltaTime);
 
 		if (BoostTime <= 0) StopBoosting();
 
@@ -498,7 +499,7 @@ public class KartController : KartComponent
 	private void StopBoosting()
 	{
 		BoostTierIndex = 0;
-		BoostEndTick = -1;
+		BoostEndTime = -1;
 		MaxSpeed = maxSpeedNormal;
 	}
 
@@ -510,17 +511,17 @@ public class KartController : KartComponent
 			// If we are given a boost from a boostpad, we need to add a cooldown to ensure that we dont get a boost
 			// every frame we are in contact with the boost pad.
 			// 
-			if (!BoostpadCooldown.ExpiredOrNotRunning(Runner))
+			if (BoostpadCooldown >= Time.time)
 				return;
 
-			BoostpadCooldown = TickTimer.CreateFromSeconds(Runner, 4f);
+			BoostpadCooldown = Time.time + 4f;
 		}
 
 		// set the boost tier to 'tier' only if it's a higher tier than current
 		BoostTierIndex = BoostTierIndex > tier ? BoostTierIndex : tier;
 
-		if (BoostEndTick == -1) BoostEndTick = Runner.Tick;
-		BoostEndTick += (int) (driftTiers[tier].boostDuration / Runner.DeltaTime);
+		if (BoostEndTime < 0f) BoostEndTime = Time.time;
+		BoostEndTime += driftTiers[tier].boostDuration;
 	}
 
 	public void RefreshAppliedSpeed()
@@ -569,7 +570,7 @@ public class KartController : KartComponent
 	{
 		Rigidbody.linearVelocity = Vector3.zero;
 		AppliedSpeed = 0;
-		BoostEndTick = -1;
+		BoostEndTime = -1;
 		BoostTierIndex = 0;
 		transform.up = Vector3.up;
 		model.transform.up = Vector3.up;
@@ -591,4 +592,10 @@ public class KartController : KartComponent
 		public float boostDuration;
 		public float startTime;
 	}
+}
+
+public class CustomInputData
+{
+	public bool IsAccelerating() => Input.GetKeyDown(KeyCode.W);
+	public bool StartedDrifting => Input.GetKey(KeyCode.Space);
 }

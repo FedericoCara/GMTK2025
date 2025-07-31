@@ -1,6 +1,6 @@
-using Fusion;
+using UnityEngine;
 
-public class KartComponent : NetworkBehaviour {
+public class KartComponent : MonoBehaviour {
     public KartEntity Kart { get; private set; }
 
     public virtual void Init(KartEntity kart) {

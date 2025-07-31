@@ -1,60 +1,50 @@
-using Fusion;
 using UnityEngine;
 
-public class Coin : NetworkBehaviour, ICollidable {
+public class Coin : MonoBehaviour, ICollidable {
 
-    [Networked]
-    public NetworkBool IsActive { get; set; } = true;
+    public bool IsActive { get; set; } = true;
 
     public Transform visuals;
-    
-    private ChangeDetector _changeDetector;
 
-    public override void Spawned()
+    private void Start()
     {
-        _changeDetector = GetChangeDetector(ChangeDetector.Source.SimulationState);
+        UpdateVisuals();
     }
 
-    public override void Render()
+    private void Update()
     {
-        foreach (var change in _changeDetector.DetectChanges(this))
+        // Handle state changes
+        if (!IsActive)
         {
-            switch (change)
-            {
-                case nameof(IsActive):
-                    OnIsEnabledChangedCallback(this);
-                    break;
-            }
+            UpdateVisuals();
         }
     }
 
     public bool Collide(KartEntity kart) {
-
-        if (Object == null || !Runner.Exists(Object))
-            return false;
-
         if (IsActive) {
             kart.CoinCount++;
+            kart.OnCoinCountChanged();
 
             IsActive = false;
+            UpdateVisuals();
             
-            if ( kart.Object.HasStateAuthority ) {
-                Runner.Despawn(Object);
-            }
+            // Destroy the coin
+            Destroy(gameObject);
         }
 
         return true;
     }
 
-    public override void Despawned(NetworkRunner runner, bool hasState)
-    {
-        base.Despawned(runner, hasState);
-    }
+    private void UpdateVisuals() {
+        if (visuals != null)
+        {
+            visuals.gameObject.SetActive(IsActive);
+        }
 
-    private static void OnIsEnabledChangedCallback(Coin changed) {
-        changed.visuals.gameObject.SetActive(changed.IsActive);
-
-        if ( !changed.IsActive )
-            AudioManager.PlayAndFollow("coinSFX", changed.transform, AudioManager.MixerTarget.SFX);
+        if (!IsActive)
+        {
+            AudioManager.PlayAndFollow("coinSFX", transform, AudioManager.MixerTarget.SFX);
+        }
     }
 }
+

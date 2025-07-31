@@ -25,10 +25,8 @@ public class KartAnimator : KartComponent
 		Controller.IsSpinout = false;
 	}
 
-	public override void Spawned()
+	public void Start()
 	{
-		base.Spawned();
-
 		Kart.Controller.OnDriftTierIndexChanged += UpdateDriftState;
 		Kart.Controller.OnBoostTierIndexChanged += UpdateBoostState;
 
@@ -137,10 +135,7 @@ public class KartAnimator : KartComponent
 			emitter.Play(true);
 		}
 		
-		if (Object.HasInputAuthority)
-		{
-			Kart.Camera.speedLines.Play();
-		}
+		Kart.Camera.speedLines.Play();
 	}
 
 	public void StopBoost()
@@ -150,10 +145,8 @@ public class KartAnimator : KartComponent
 			emitter.Stop(true);
 		}
 
-		if (Object.HasInputAuthority)
-		{
 			Kart.Camera.speedLines.Stop();
-		}
+		
 	}
 
 	public void PlayOffroad()
