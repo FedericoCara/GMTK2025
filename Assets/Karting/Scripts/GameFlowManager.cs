@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Playables;
@@ -40,6 +41,7 @@ public class GameFlowManager : MonoBehaviour
 
     public bool autoFindKarts = true;
     public ArcadeKart playerKart;
+    public event Action OnRaceStarted;
 
     ArcadeKart[] karts;
     ObjectiveManager m_ObjectiveManager;
@@ -47,6 +49,8 @@ public class GameFlowManager : MonoBehaviour
     float m_TimeLoadEndGameScene;
     string m_SceneToLoad;
     float elapsedTimeBeforeEndScene = 0;
+
+    public static GameFlowManager Instance => FindFirstObjectByType<GameFlowManager>();
 
     void Start()
     {
@@ -95,6 +99,7 @@ public class GameFlowManager : MonoBehaviour
 			k.SetCanMove(true);
         }
         m_TimeManager.StartRace();
+        OnRaceStarted?.Invoke();
     }
 
     void ShowRaceCountdownAnimation() {
