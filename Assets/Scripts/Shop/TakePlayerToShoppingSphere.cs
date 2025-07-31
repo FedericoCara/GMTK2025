@@ -1,14 +1,23 @@
+using System;
 using UnityEngine;
 
 namespace Shop
 {
     public class TakePlayerToShoppingSphere : MonoBehaviour
     {
-        public LapObject endingLap;
+        public Objective objective;
         
         void Start()
         {
-            endingLap.OnLapCompleted += OnLapCompleted;
+            objective.OnLapCompleted += OnLapCompleted;
+        }
+
+        private void OnDestroy()
+        {
+            if (objective)
+            {
+                objective.OnLapCompleted -= OnLapCompleted;
+            }
         }
 
         private void OnLapCompleted()

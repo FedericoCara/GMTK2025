@@ -13,8 +13,6 @@ public class LapObject : TargetObject
     [HideInInspector]
     public bool lapOverNextPass;
 
-    public event Action OnLapCompleted; 
-
     void Start() {
         Register();
     }
@@ -30,6 +28,5 @@ public class LapObject : TargetObject
             return;
        
         Objective.OnUnregisterPickup?.Invoke(this);
-        OnLapCompleted?.Invoke();
     }
 }
