@@ -172,6 +172,7 @@ namespace KartGame.KartSystems
 
         // can the kart move?
         bool m_CanMove = true;
+        private bool m_CanOnlyMoveSideways;
         List<StatPowerup> m_ActivePowerupList = new List<StatPowerup>();
         ArcadeKart.Stats m_FinalStats;
 
@@ -183,6 +184,7 @@ namespace KartGame.KartSystems
 
         public void AddPowerup(StatPowerup statPowerup) => m_ActivePowerupList.Add(statPowerup);
         public void SetCanMove(bool move) => m_CanMove = move;
+        public void SetCanOnlyMoveSideways(bool move) => m_CanOnlyMoveSideways = move;
         public float GetMaxSpeed() => Mathf.Max(m_FinalStats.TopSpeed, m_FinalStats.ReverseSpeed);
 
         private void ActivateDriftVFX(bool active)
@@ -313,12 +315,23 @@ namespace KartGame.KartSystems
             if (m_CanMove)
             {
                 MoveVehicle(Input.Accelerate, Input.Brake, Input.TurnInput);
+                IfCanOnlyMoveSideways();
             }
             GroundAirbourne();
 
             m_PreviousGroundPercent = GroundPercent;
 
             UpdateDriftVFXOrientation();
+        }
+
+        private void IfCanOnlyMoveSideways()
+        {
+            if (m_CanOnlyMoveSideways)
+            {
+                var linearVelocity = Rigidbody.linearVelocity;
+                linearVelocity.z = 0;
+                Rigidbody.linearVelocity = linearVelocity;
+            }
         }
 
         void GatherInputs()
