@@ -40,6 +40,8 @@ public abstract class Objective : MonoBehaviour
     public bool isBlocking() => !(isOptional || isCompleted);
 
     public UnityAction<UnityActionUpdateObjective> onUpdateObjective;
+    public event Action OnLapCompleted;
+    public event Action OnStartInitialLap;
 
     protected NotificationHUDManager m_NotificationHUDManager;
     protected ObjectiveHUDManger m_ObjectiveHUDManger;
@@ -137,6 +139,7 @@ public abstract class Objective : MonoBehaviour
             {
                 TimeDisplay.OnUpdateLap();
                 lapObject.lapOverNextPass = true;
+                OnStartInitialLap?.Invoke();
                 return;
             }
 
@@ -145,7 +148,7 @@ public abstract class Objective : MonoBehaviour
             ReachCheckpoint(0);
             ResetPickups();
             TimeDisplay.OnUpdateLap();
-
+            OnLapCompleted?.Invoke();
         }
         else
         {
