@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 1726159547199095093}
   - component: {fileID: 4431205490788297568}
   m_Layer: 0
-  m_Name: CubeEnemy
+  m_Name: CubeEnemy 2
   m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -46,7 +46,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ec45b15a5f0ca374783fbf80302fcbad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  health: 1
+  health: 2
   loot: {fileID: 7059623195541843052, guid: 9464e5766bfe47d4a89f0dfc6aad429a, type: 3}
 --- !u!54 &4431205490788297568
 Rigidbody:
@@ -140,7 +140,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: f9dc2e93cf67cde4e9d61c3bc45059ce, type: 2}
+  - {fileID: 2100000, guid: 84c60d90611c23145898855789d9f60f, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
