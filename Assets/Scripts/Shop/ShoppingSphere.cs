@@ -2,14 +2,16 @@ using System;
 using Cinemachine;
 using KartGame.KartSystems;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Shop
 {
     public class ShoppingSphere : MonoBehaviour
     {
         public static ShoppingSphere Instance => FindFirstObjectByType<ShoppingSphere>();
+        public Animator animator;
         public Transform playerPosition;
-        public Transform startingPosition;
+        public Transform resumePosition;
         private ArcadeKart _player;
         private Vector3 _previousVelocity;
         private CinemachineVirtualCamera _vcam;
@@ -22,7 +24,8 @@ namespace Shop
         public void Activate(GameObject player)
         {
             _player = player.GetComponent<ArcadeKart>();
-            Vector3 delta = startingPosition.position - _player.transform.position;
+            StartAnimation();
+            Vector3 delta = resumePosition.position - _player.transform.position;
             player.transform.position = playerPosition.position;
             RenderSettings.fog = true;
             var playerRigidbody = player.GetComponent<Rigidbody>();
@@ -33,10 +36,17 @@ namespace Shop
             Invoke(nameof(Exit), 10);
         }
 
+        private void StartAnimation()
+        {
+            animator.enabled = true;
+            animator.Rebind();
+            animator.Update(0f);
+        }
+
         public void Exit()
         {
-            Vector3 delta = startingPosition.position - _player.transform.position;
-            _player.transform.position = startingPosition.position;
+            Vector3 delta = resumePosition.position - _player.transform.position;
+            _player.transform.position = resumePosition.position;
             _player.SetCanOnlyMoveSideways(false);
             _player.GetComponent<Rigidbody>().linearVelocity = _previousVelocity;
             FlushCamera(delta);

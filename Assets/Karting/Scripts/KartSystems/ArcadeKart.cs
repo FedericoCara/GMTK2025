@@ -184,7 +184,19 @@ namespace KartGame.KartSystems
 
         public void AddPowerup(StatPowerup statPowerup) => m_ActivePowerupList.Add(statPowerup);
         public void SetCanMove(bool move) => m_CanMove = move;
-        public void SetCanOnlyMoveSideways(bool move) => m_CanOnlyMoveSideways = move;
+        public void SetCanOnlyMoveSideways(bool move)
+        {
+            m_CanOnlyMoveSideways = move;
+            if (move)
+            {
+                Rigidbody.constraints = RigidbodyConstraints.FreezePositionZ | RigidbodyConstraints.FreezeRotationY;
+            }
+            else
+            {
+                Rigidbody.constraints = RigidbodyConstraints.None;
+            }
+        }
+
         public float GetMaxSpeed() => Mathf.Max(m_FinalStats.TopSpeed, m_FinalStats.ReverseSpeed);
 
         private void ActivateDriftVFX(bool active)
@@ -326,6 +338,7 @@ namespace KartGame.KartSystems
 
         private void IfCanOnlyMoveSideways()
         {
+            return;
             if (m_CanOnlyMoveSideways)
             {
                 var linearVelocity = Rigidbody.linearVelocity;
