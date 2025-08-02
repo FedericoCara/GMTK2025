@@ -12,8 +12,8 @@ namespace UI
         private void Start()
         {
             var looter = FindFirstObjectByType<Looter>();
-            UpdateCoins(looter.coins);
-            looter.OnLootUpdated += UpdateCoins;
+            UpdateCoins(looter.Coins);
+            looter.OnCoinsUpdated += UpdateCoins;
         }
 
         private void UpdateCoins(int coins)

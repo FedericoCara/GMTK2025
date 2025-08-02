@@ -2,8 +2,8 @@ using System;
 using System.Collections;
 using Cinemachine;
 using KartGame.KartSystems;
+using TMPro;
 using UnityEngine;
-using UnityEngine.Serialization;
 using Weapons;
 
 namespace Shop
@@ -17,14 +17,37 @@ namespace Shop
         public Transform resumePosition;
         public Transform cameraLookAt;
         public ShopPowerUp shopPowerUp;
+        public TMP_Text timeLeftTxt;
         private Vector3 _previousVelocity;
         private CinemachineVirtualCamera _vcam;
         private Transform _previousLookAt;
+        private float _timeToExit;
+        private float TimeToExit
+        {
+            get => _timeToExit;
+            set
+            {
+                _timeToExit = value;
+                timeLeftTxt.text = Mathf.CeilToInt(value).ToString();
+            }
+        }
 
         private void Start()
         {
             _vcam = FindObjectOfType<Cinemachine.CinemachineVirtualCamera>();
             //Activate();
+        }
+
+        private void Update()
+        {
+            if (TimeToExit > 0)
+            {
+                TimeToExit -= Time.deltaTime;
+                if (TimeToExit <= 0)
+                {
+                    Exit();
+                }
+            }
         }
 
         public void Activate()
@@ -35,11 +58,16 @@ namespace Shop
             Vector3 delta = SetupPlayer(player.gameObject, kartAnim);
             _previousLookAt = _vcam.LookAt;
             FlushCamera(delta, cameraLookAt, cameraLookAt);
-            shopPowerUp.Activate(player.transform);
-            Invoke(nameof(Exit), 10);
+            shopPowerUp.Activate(player.transform, OnPurchaseMade);
+            TimeToExit = 10;
         }
 
-        public void Exit()
+        private void OnPurchaseMade()
+        {
+            TimeToExit = 1;
+        }
+
+        private void Exit()
         {
             shopPowerUp.Deactivate();
             var kartAnim = player.GetComponent<KartAnimation>();
@@ -79,15 +107,20 @@ namespace Shop
             Vector3 delta = resumePosition.position - player.transform.position;
             var playerRigidbody = player.GetComponent<Rigidbody>();
             player.transform.position = resumePosition.position;
-            player.SetCanMove(true);
-            player.GetComponent<Rigidbody>().linearVelocity = _previousVelocity;
             playerRigidbody.isKinematic = false;
+            player.GetComponent<Rigidbody>().linearVelocity = _previousVelocity;
+            Invoke(nameof(EnablePlayerMove), 0.1f);
             player.enabled = true;
             kartAnim.enabled = true;
             var autoShooter = player.GetComponentInChildren<AutoShooter>();
             if (autoShooter)
                 autoShooter.enabled = true;
             return delta;
+        }
+
+        private void EnablePlayerMove()
+        {
+            player.SetCanMove(true);
         }
 
         private void FlushCamera(Vector3 delta, Transform cameraFollow, Transform cameraLookAt)

@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 29f202391259461c879c67a5bc808cc1, type: 3}
-  m_Name: 0.1ShootSpeedPowerUp
+  m_Name: x2ShootSpeedPowerUp
   m_EditorClassIdentifier: 
   rarity: 1
-  cost: 1
+  cost: 6
   representation:
     icon: {fileID: 3943610017052282548, guid: a8e94f5e2efc3aa4aa95b8b734a0ee21, type: 3}
-  cadenceMultiplier: 0.1
+  cadenceMultiplier: 0.5

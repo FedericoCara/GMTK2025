@@ -1,4 +1,5 @@
 using UnityEngine;
+using Weapons;
 
 namespace PowerUp
 {
@@ -6,5 +7,11 @@ namespace PowerUp
     public class ShootSpeedPowerUp : BasePowerUp
     {
         public float cadenceMultiplier = 0.1f;
+
+        public override void Apply(GameObject player)
+        {
+            var autoShooter = player.GetComponentInChildren<AutoShooter>();
+            autoShooter.shootFrequency *= (1 - cadenceMultiplier);
+        }
     }
 }

@@ -10,7 +10,7 @@ namespace PowerUp
         public int cost = 1;
         public PowerUpRepresentation representation;
 
-        public virtual void Apply(ArcadeKart kart)
+        public virtual void Apply(GameObject player)
         {
             //Does nothing
         }

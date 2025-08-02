@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Items;
@@ -21,19 +22,21 @@ namespace Shop
         private Looter _looter;
         private int _lastPlayerPosition = -1;
         private bool _purchaseMade;
+        private Action _callback;
 
         private void Start()
         {
             _lapInfo = FindAnyObjectByType<ObjectiveCompleteLaps>();
         }
 
-        public void Activate(Transform player)
+        public void Activate(Transform player, Action onPurchaseMade)
         {
             _active = true;
             _player = player;
             _looter = player.GetComponent<Looter>();
             _lastPlayerPosition = -1;
             _purchaseMade = false;
+            _callback = onPurchaseMade;
             int currentLap = _lapInfo.currentLap;
             _options = GetOptions(powerUpDisplay.Count);
             for (int i = 0; i < powerUpDisplay.Count; i++)
@@ -55,14 +58,12 @@ namespace Shop
                 {
                     _lastPlayerPosition = _currentPlayerPosition;
                     _currentPlayerPosition--;
-                    Debug.Log($"Moving left to {_currentPlayerPosition}");
                     UpdatePlayerPosition();
                     FocusPowerUp();
                 }else if (input > 0 && _currentPlayerPosition < playerPositions.Count - 1)
                 {
                     _lastPlayerPosition = _currentPlayerPosition;
                     _currentPlayerPosition++;
-                    Debug.Log($"Moving right {_currentPlayerPosition}");
                     UpdatePlayerPosition();
                     FocusPowerUp();
                 }
@@ -90,7 +91,7 @@ namespace Shop
             }
         }
 
-        private bool IsFocusedPowerUpAffordable() => FocusedPowerUp.cost<=_looter.coins;
+        private bool IsFocusedPowerUpAffordable() => FocusedPowerUp.cost<=_looter.Coins;
 
         private void UnfocusPowerUp(int currentPlayerPosition)
         {
@@ -115,10 +116,11 @@ namespace Shop
             {
                 var powerUpSelected = FocusedPowerUp;
                 _powerUpsGiven[powerUpSelected]++;
-                _player.GetComponent<Looter>().coins -= powerUpSelected.cost;
+                _player.GetComponent<Looter>().Coins -= powerUpSelected.cost;
                 _player.GetComponent<PlayerPowerUps>().Add(powerUpSelected);
                 ReproducePurchaseSuccessSfx();
                 DisablePurchases();
+                _callback?.Invoke();
                 _purchaseMade = true;
             }
             else

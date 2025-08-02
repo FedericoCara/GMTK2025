@@ -6,17 +6,17 @@ namespace Items
 {
     public class Looter : MonoBehaviour
     {
-        [FormerlySerializedAs("lootsCollected")] public int coins;
+        [SerializeField] private int coins;
 
-        public event Action<int> OnLootUpdated;
+        public event Action<int> OnCoinsUpdated;
 
-        private int LootsCollected
+        public int Coins
         {
             get => coins;
             set
             {
                 coins = value;
-                OnLootUpdated?.Invoke(coins);
+                OnCoinsUpdated?.Invoke(coins);
             }
         }
 
@@ -32,7 +32,7 @@ namespace Items
         {
             if (other.PickedUp())
             {
-                LootsCollected++;
+                Coins++;
             }
         }
     }

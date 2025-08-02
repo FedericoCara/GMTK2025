@@ -11,8 +11,9 @@ namespace PowerUp
             MaxTime = float.MaxValue
         };
 
-        public override void Apply(ArcadeKart kart)
+        public override void Apply(GameObject player)
         {
+            var kart = player.GetComponent<ArcadeKart>();
             kart.AddPowerup(addedStats);
         }
     }
