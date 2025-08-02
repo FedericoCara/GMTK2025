@@ -9,6 +9,7 @@ namespace Weapons
         
         public float speed;
         public int damage = 1;
+        public GameObject effect;
         private Rigidbody _rb;
         private float _lifeTime;
         private int _trackLayer;
@@ -101,12 +102,20 @@ namespace Weapons
         protected virtual void OnImpactedEnemy(Enemy other)
         {
             other.ReceiveDamage(damage);
+            DoVisualFeedback();
             Destroy(gameObject);
+        }
+
+        protected void DoVisualFeedback()
+        {
+            var visual= Instantiate(effect, transform.position, transform.rotation);
+            Destroy(visual, 2);
         }
 
         protected virtual void OnImpactedWall()
         {
             Destroy(gameObject);
+            DoVisualFeedback();
         }
 
         private static bool IsWall(Collider other) => other.tag.Equals("wall") || LayerMask.LayerToName(other.gameObject.layer).Equals("Track");

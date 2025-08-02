@@ -17,6 +17,7 @@ namespace Weapons
             else
             {
                 other.ReceiveDamage(damage);
+                DoVisualFeedback();
                 enemiesHit.Add(other);
             }
         }
