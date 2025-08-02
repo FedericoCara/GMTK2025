@@ -12,7 +12,7 @@ namespace UI
         private void Start()
         {
             var looter = FindFirstObjectByType<Looter>();
-            UpdateCoins(looter.lootsCollected);
+            UpdateCoins(looter.coins);
             looter.OnLootUpdated += UpdateCoins;
         }
 

@@ -1,4 +1,5 @@
 using System;
+using KartGame.KartSystems;
 using UnityEngine;
 
 namespace PowerUp
@@ -8,6 +9,11 @@ namespace PowerUp
         public Rarity rarity = Rarity.Common;
         public int cost = 1;
         public PowerUpRepresentation representation;
+
+        public virtual void Apply(ArcadeKart kart)
+        {
+            //Does nothing
+        }
     }
 
     [Serializable]

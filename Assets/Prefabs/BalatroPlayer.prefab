@@ -63,6 +63,7 @@ GameObject:
   - component: {fileID: 455067476223291117}
   - component: {fileID: 6553698111555032967}
   - component: {fileID: 633833435761819207}
+  - component: {fileID: 6935130060924637155}
   m_Layer: 2
   m_Name: BalatroPlayer
   m_TagString: Player
@@ -248,7 +249,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c8534e17a0f90604c9afd4f5c73d829f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_Id: 6f8df6bb-64ad-47ad-87a5-419e886aa7b1
+  m_Id: 14215b8c-ec6a-448b-adb3-bedfe8debd69
 --- !u!114 &6553698111555032967
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -275,6 +276,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   objective: {fileID: 0}
+--- !u!114 &6935130060924637155
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2188832709223060835}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 37d8731bbec058d438d10e88c8039e12, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  kart: {fileID: 2188832709223060838}
+  powerUps: []
 --- !u!1 &2188832709288383789
 GameObject:
   m_ObjectHideFlags: 0

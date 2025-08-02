@@ -4,6 +4,7 @@ using Cinemachine;
 using KartGame.KartSystems;
 using UnityEngine;
 using UnityEngine.Serialization;
+using Weapons;
 
 namespace Shop
 {
@@ -67,6 +68,9 @@ namespace Shop
             playerRigidbody.isKinematic = true;
             this.player.enabled = false;
             kartAnim.enabled = false;
+            var autoShooter = player.GetComponentInChildren<AutoShooter>();
+            if (autoShooter)
+                autoShooter.enabled = false;
             return delta;
         }
 
@@ -80,6 +84,9 @@ namespace Shop
             playerRigidbody.isKinematic = false;
             player.enabled = true;
             kartAnim.enabled = true;
+            var autoShooter = player.GetComponentInChildren<AutoShooter>();
+            if (autoShooter)
+                autoShooter.enabled = true;
             return delta;
         }
 

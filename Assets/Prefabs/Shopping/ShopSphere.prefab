@@ -86,6 +86,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd8e5ad627c8ec84aa965647d11ccc38, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  player: {fileID: 0}
   animator: {fileID: 3397746907622018575}
   playerPosition: {fileID: 6328324955757321813}
   resumePosition: {fileID: 0}

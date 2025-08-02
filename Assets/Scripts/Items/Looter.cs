@@ -1,21 +1,22 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Items
 {
     public class Looter : MonoBehaviour
     {
-        public int lootsCollected;
+        [FormerlySerializedAs("lootsCollected")] public int coins;
 
         public event Action<int> OnLootUpdated;
 
         private int LootsCollected
         {
-            get => lootsCollected;
+            get => coins;
             set
             {
-                lootsCollected = value;
-                OnLootUpdated?.Invoke(lootsCollected);
+                coins = value;
+                OnLootUpdated?.Invoke(coins);
             }
         }
 

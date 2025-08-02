@@ -1,6 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
+using Items;
 using PowerUp;
 using UnityEngine;
 
@@ -17,49 +17,138 @@ namespace Shop
         private int _lastHorizontal;
         private int _currentPlayerPosition;
         private Transform _player;
+        private List<BasePowerUp> _options;
+        private Looter _looter;
+        private int _lastPlayerPosition = -1;
+        private bool _purchaseMade;
 
         private void Start()
         {
             _lapInfo = FindAnyObjectByType<ObjectiveCompleteLaps>();
         }
 
+        public void Activate(Transform player)
+        {
+            _active = true;
+            _player = player;
+            _looter = player.GetComponent<Looter>();
+            _lastPlayerPosition = -1;
+            _purchaseMade = false;
+            int currentLap = _lapInfo.currentLap;
+            _options = GetOptions(powerUpDisplay.Count);
+            for (int i = 0; i < powerUpDisplay.Count; i++)
+            {
+                powerUpDisplay[i].SetPowerUp(_options[i]);
+            }
+
+            _currentPlayerPosition = playerPositions.Count / 2;
+            UpdatePlayerPosition();
+            FocusPowerUp();
+        }
+
         private void Update()
         {
-            if (_active)
+            if (_active && !_purchaseMade)
             {
                 var input = GetDiscreteHorizontalInput();
                 if (input < 0 && _currentPlayerPosition>0)
                 {
+                    _lastPlayerPosition = _currentPlayerPosition;
                     _currentPlayerPosition--;
                     Debug.Log($"Moving left to {_currentPlayerPosition}");
                     UpdatePlayerPosition();
+                    FocusPowerUp();
                 }else if (input > 0 && _currentPlayerPosition < playerPositions.Count - 1)
                 {
+                    _lastPlayerPosition = _currentPlayerPosition;
                     _currentPlayerPosition++;
                     Debug.Log($"Moving right {_currentPlayerPosition}");
                     UpdatePlayerPosition();
+                    FocusPowerUp();
+                }
+
+                if (Input.GetKeyDown(KeyCode.Space))
+                {
+                    TryBuyPowerUp();
                 }
             }
+        }
+
+        private void FocusPowerUp()
+        {
+            if (_lastPlayerPosition >= 0)
+            {
+                UnfocusPowerUp(_lastPlayerPosition);
+            }
+            if (IsFocusedPowerUpAffordable())
+            {
+                AffordablePowerUp(_currentPlayerPosition);
+            }
+            else
+            {
+                UnaffordablePowerUp(_currentPlayerPosition);
+            }
+        }
+
+        private bool IsFocusedPowerUpAffordable() => FocusedPowerUp.cost<=_looter.coins;
+
+        private void UnfocusPowerUp(int currentPlayerPosition)
+        {
+            powerUpDisplay[currentPlayerPosition].Unfocus();
+        }
+
+        private void UnaffordablePowerUp(int currentPlayerPosition)
+        {
+            powerUpDisplay[currentPlayerPosition].Unaffordable();
+        }
+
+        private void AffordablePowerUp(int currentPlayerPosition)
+        {
+            powerUpDisplay[currentPlayerPosition].Affordable();
+        }
+
+        private BasePowerUp FocusedPowerUp => _options[_currentPlayerPosition];
+
+        private void TryBuyPowerUp()
+        {
+            if (IsFocusedPowerUpAffordable())
+            {
+                var powerUpSelected = FocusedPowerUp;
+                _powerUpsGiven[powerUpSelected]++;
+                _player.GetComponent<Looter>().coins -= powerUpSelected.cost;
+                _player.GetComponent<PlayerPowerUps>().Add(powerUpSelected);
+                ReproducePurchaseSuccessSfx();
+                DisablePurchases();
+                _purchaseMade = true;
+            }
+            else
+            {
+                ReproducePurchaseFailSfx();
+            }
+
+        }
+
+        private void DisablePurchases()
+        {
+            foreach (PowerUpInShop powerUpInShop in powerUpDisplay)
+            {
+                powerUpInShop.Disable();
+            }
+        }
+
+        private void ReproducePurchaseFailSfx()
+        {
+            //TODO
+        }
+
+        private void ReproducePurchaseSuccessSfx()
+        {
+            //TODO
         }
 
         public void Deactivate()
         {
             _active = false;
-        }
-
-        public void Activate(Transform player)
-        {
-            _active = true;
-            _player = player;
-            int currentLap = _lapInfo.currentLap;
-            List<BasePowerUp> options = GetOptions(powerUpDisplay.Count);
-            for (int i = 0; i < powerUpDisplay.Count; i++)
-            {
-                powerUpDisplay[i].SetPowerUp(options[i]);
-            }
-
-            _currentPlayerPosition = playerPositions.Count / 2;
-            UpdatePlayerPosition();
         }
 
         private void UpdatePlayerPosition()
@@ -80,21 +169,23 @@ namespace Shop
             List<BasePowerUp> options = new();
             System.Random rng = new System.Random();
 
+            var powerUpsGivenAndOffered = new Dictionary<BasePowerUp, int>(_powerUpsGiven);
+
             for (int i = 0; i < count; i++)
             {
                 // Encontrar el mínimo de veces otorgado
-                int minGiven = _powerUpsGiven.Values.Min();
+                int minGiven = powerUpsGivenAndOffered.Values.Min();
 
                 // Filtrar los powerUps con ese valor
                 var leastGiven = powerUpAvailable
-                    .Where(p => _powerUpsGiven[p] == minGiven)
+                    .Where(p => powerUpsGivenAndOffered[p] == minGiven)
                     .ToList();
 
                 // Seleccionar aleatoriamente de los menos dados
                 var chosen = leastGiven[rng.Next(leastGiven.Count)];
 
                 options.Add(chosen);
-                _powerUpsGiven[chosen]++; // Actualizamos el contador
+                powerUpsGivenAndOffered[chosen]++; // Actualizamos el contador
             }
 
             return options;

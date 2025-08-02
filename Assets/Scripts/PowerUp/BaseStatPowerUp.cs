@@ -10,5 +10,10 @@ namespace PowerUp
         {
             MaxTime = float.MaxValue
         };
+
+        public override void Apply(ArcadeKart kart)
+        {
+            kart.AddPowerup(addedStats);
+        }
     }
 }
