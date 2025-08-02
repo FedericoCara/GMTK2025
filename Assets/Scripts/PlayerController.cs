@@ -5,11 +5,13 @@ public class PlayerController : MonoBehaviour
 {
     [SerializeField] private int initialHealth;
     [SerializeField] private int currentHealth;
+    
+    public int Health => currentHealth;
 
     public event Action OnPlayerDeath;
-    public event Action OnHealthChanged;
+    public event Action<int> OnHealthChanged;
 
-    public void Start()
+    public void Awake()
     {
         currentHealth = initialHealth;
     }
@@ -17,7 +19,7 @@ public class PlayerController : MonoBehaviour
     public void Damage(int damage)
     {
         currentHealth -= damage;
-        OnHealthChanged?.Invoke();
+        OnHealthChanged?.Invoke(currentHealth);
         
         if (currentHealth <= 0)
         {

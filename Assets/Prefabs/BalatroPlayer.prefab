@@ -97,6 +97,7 @@ GameObject:
   - component: {fileID: 6553698111555032967}
   - component: {fileID: 633833435761819207}
   - component: {fileID: 6935130060924637155}
+  - component: {fileID: 8195294507135245056}
   m_Layer: 2
   m_Name: BalatroPlayer
   m_TagString: Player
@@ -324,6 +325,20 @@ MonoBehaviour:
   powerUps: []
   shooter: {fileID: 1163717715149351028}
   arcadeKart: {fileID: 2188832709223060838}
+--- !u!114 &8195294507135245056
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2188832709223060835}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c51744a16d75c7468361340706c0016, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  initialHealth: 20
+  currentHealth: 0
 --- !u!1 &2188832709288383789
 GameObject:
   m_ObjectHideFlags: 0
