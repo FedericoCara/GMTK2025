@@ -10,14 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8d635105a42d4725af62ae3a4ac291be, type: 3}
-  m_Name: 10TopSpeedPowerUp
+  m_Name: 2TopSpeedPowerUp
   m_EditorClassIdentifier: 
-  cost: 1
+  rarity: 0
+  cost: 2
+  representation:
+    icon: {fileID: 5166623003219072827, guid: ff614fd7bc886be4f92725ff273c5a28, type: 3}
   addedStats:
     modifiers:
-      TopSpeed: 10
+      TopSpeed: 2
       Acceleration: 0
-      ReverseSpeed: 0
+      ReverseSpeed: 1
       ReverseAcceleration: 0
       AccelerationCurve: 0.2
       Braking: 0
@@ -26,5 +29,5 @@ MonoBehaviour:
       Steer: 0
       AddedGravity: 0
     PowerUpID: 
-    ElapsedTime: 0
+    ElapsedTime: 25.600395
     MaxTime: 3.4028235e+38

@@ -1,21 +1,22 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Items
 {
     public class Looter : MonoBehaviour
     {
-        public int lootsCollected;
+        [SerializeField] private int coins;
 
-        public event Action<int> OnLootUpdated;
+        public event Action<int> OnCoinsUpdated;
 
-        private int LootsCollected
+        public int Coins
         {
-            get => lootsCollected;
+            get => coins;
             set
             {
-                lootsCollected = value;
-                OnLootUpdated?.Invoke(lootsCollected);
+                coins = value;
+                OnCoinsUpdated?.Invoke(coins);
             }
         }
 
@@ -31,7 +32,7 @@ namespace Items
         {
             if (other.PickedUp())
             {
-                LootsCollected++;
+                Coins++;
             }
         }
     }
