@@ -8,10 +8,11 @@ namespace PowerUp
     {
         public float cadenceMultiplier = 0.1f;
 
-        public override void Apply(GameObject player)
+        public override void Apply(PlayerPowerUps player)
         {
-            var autoShooter = player.GetComponentInChildren<AutoShooter>();
-            autoShooter.shootFrequency *= (1 - cadenceMultiplier);
+            var autoShooters = player.Shooter.GetComponents<AutoShooter>();
+            foreach (var autoShooter in autoShooters)
+                autoShooter.shootFrequency *= (1 - cadenceMultiplier);
         }
     }
 }

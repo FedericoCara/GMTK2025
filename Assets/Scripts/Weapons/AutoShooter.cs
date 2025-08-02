@@ -4,6 +4,7 @@ namespace Weapons
 {
     public class AutoShooter : MonoBehaviour
     {
+        public ShooterType shooterType;
         public Bullet bullet;
         public float shootFrequency = 1f;
         private float nextShootDelay;
@@ -54,5 +55,12 @@ namespace Weapons
         {
             nextShootDelay = shootFrequency;
         }
+    }
+
+    public enum ShooterType
+    {
+        STARTING,
+        PIERCING,
+        EXPLOSIVE
     }
 }

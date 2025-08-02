@@ -10,6 +10,8 @@ GameObject:
   m_Component:
   - component: {fileID: 8138834105635787040}
   - component: {fileID: 5376516939424593220}
+  - component: {fileID: 1856741946163836282}
+  - component: {fileID: 6391952428083822739}
   m_Layer: 2
   m_Name: Shooter
   m_TagString: Untagged
@@ -44,8 +46,39 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f6bdcae047624a4aa60259695db562c6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  shooterType: 0
   bullet: {fileID: 4520666792213599846, guid: 93b8690a5852c7a4da7b0dad1a9ec1b4, type: 3}
   shootFrequency: 1
+--- !u!114 &1856741946163836282
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1163717715149351028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6bdcae047624a4aa60259695db562c6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  shooterType: 1
+  bullet: {fileID: 4520666792213599846, guid: 12286b63944e8fe4dabc9bd53624340e, type: 3}
+  shootFrequency: 2.5
+--- !u!114 &6391952428083822739
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1163717715149351028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6bdcae047624a4aa60259695db562c6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  shooterType: 2
+  bullet: {fileID: 4520666792213599846, guid: 6279c7fa4e72b804fbd2d0caa30cadbb, type: 3}
+  shootFrequency: 3.5
 --- !u!1 &2188832709223060835
 GameObject:
   m_ObjectHideFlags: 0
@@ -244,7 +277,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2188832709223060835}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c8534e17a0f90604c9afd4f5c73d829f, type: 3}
   m_Name: 
@@ -288,8 +321,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 37d8731bbec058d438d10e88c8039e12, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  kart: {fileID: 2188832709223060838}
   powerUps: []
+  shooter: {fileID: 1163717715149351028}
+  arcadeKart: {fileID: 2188832709223060838}
 --- !u!1 &2188832709288383789
 GameObject:
   m_ObjectHideFlags: 0
