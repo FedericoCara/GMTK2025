@@ -36,13 +36,11 @@ namespace Weapons
             {
                 Destroy(gameObject);
             }
-
-            AlignWithGround();
         }
 
         void FixedUpdate()
         {
-            AlignWithGround();
+            AlignWithGround(2, 20, 1);
             UpdateVelocity();
         }
 
@@ -51,12 +49,18 @@ namespace Weapons
             _rb.linearVelocity = (transform.forward * speed) + _spawnerVelocity;
         }
 
-        private void AlignWithGround(float rayDistance = 2f, float smoothRotation = 10f)
+        private void AlignWithGround(
+            float rayDistance = 2f,
+            float smoothRotation = 10f,
+            float fixedHeight = 0.5f
+        )
         {
-            if (Physics.Raycast(transform.position, Vector3.down, out RaycastHit hit, rayDistance, _trackLayer))
+            Debug.DrawRay(transform.position + Vector3.up * 0.5f, -transform.up * rayDistance, Color.green);
+            if (Physics.Raycast(transform.position + Vector3.up * 0.5f, -transform.up, out RaycastHit hit, rayDistance, _trackLayer))
             {
                 Vector3 groundNormal = hit.normal;
 
+                // --- Rotación alineada con la pendiente ---
                 Quaternion targetRotation = Quaternion.LookRotation(
                     Vector3.ProjectOnPlane(transform.forward, groundNormal).normalized,
                     groundNormal
@@ -67,6 +71,19 @@ namespace Weapons
                     targetRotation,
                     Time.fixedDeltaTime * smoothRotation
                 );
+
+                // Posicionar a altura fija sobre el piso
+                Vector3 targetPosition = new Vector3(
+                    transform.position.x,
+                    hit.point.y + fixedHeight,
+                    transform.position.z
+                );
+
+                transform.position = Vector3.Lerp(
+                    transform.position,
+                    targetPosition,
+                    Time.fixedDeltaTime * smoothRotation
+                );
             }
         }
 
@@ -74,12 +91,22 @@ namespace Weapons
         {
             if (other.tag.Equals(Enemy.EnemyTag))
             {
-                other.GetComponentInParent<Enemy>().ReceiveDamage(damage);
-                Destroy(gameObject);
+                OnImpactedEnemy(other.GetComponentInParent<Enemy>());
             } else if (IsWall(other))
             {
-                Destroy(gameObject);
+                OnImpactedWall();
             }
+        }
+
+        protected virtual void OnImpactedEnemy(Enemy other)
+        {
+            other.ReceiveDamage(damage);
+            Destroy(gameObject);
+        }
+
+        protected virtual void OnImpactedWall()
+        {
+            Destroy(gameObject);
         }
 
         private static bool IsWall(Collider other) => other.tag.Equals("wall") || LayerMask.LayerToName(other.gameObject.layer).Equals("Track");
