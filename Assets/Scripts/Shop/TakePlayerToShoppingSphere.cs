@@ -21,7 +21,7 @@ namespace Shop
 
         private void OnLapCompleted()
         {
-            ShoppingSphere.Instance.Activate(gameObject);
+            ShoppingSphere.Instance.Activate();
         }
     }
 }
