@@ -106,21 +106,16 @@ namespace Shop
         {
             Vector3 delta = resumePosition.position - player.transform.position;
             var playerRigidbody = player.GetComponent<Rigidbody>();
-            player.transform.position = resumePosition.position;
             playerRigidbody.isKinematic = false;
-            player.GetComponent<Rigidbody>().linearVelocity = _previousVelocity;
-            Invoke(nameof(EnablePlayerMove), 0.1f);
+            playerRigidbody.linearVelocity = _previousVelocity;
+            playerRigidbody.Move(resumePosition.position, Quaternion.identity);
+            player.SetCanMove(true);
             player.enabled = true;
             kartAnim.enabled = true;
             var autoShooter = player.GetComponentInChildren<AutoShooter>();
             if (autoShooter)
                 autoShooter.enabled = true;
             return delta;
-        }
-
-        private void EnablePlayerMove()
-        {
-            player.SetCanMove(true);
         }
 
         private void FlushCamera(Vector3 delta, Transform cameraFollow, Transform cameraLookAt)
