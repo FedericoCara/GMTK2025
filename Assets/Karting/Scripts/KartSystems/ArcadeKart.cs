@@ -14,6 +14,23 @@ namespace KartGame.KartSystems
             public string PowerUpID;
             public float ElapsedTime;
             public float MaxTime;
+
+            public StatPowerup()
+            {
+            }
+
+            public StatPowerup(Stats stats, string powerUpID, float elapsedTime, float maxTime)
+            {
+                modifiers = stats;
+                PowerUpID = powerUpID;
+                ElapsedTime = elapsedTime;
+                MaxTime = maxTime;
+            }
+
+            public StatPowerup Clone()
+            {
+                return new StatPowerup(modifiers, PowerUpID, ElapsedTime, MaxTime);
+            }
         }
 
         [System.Serializable]

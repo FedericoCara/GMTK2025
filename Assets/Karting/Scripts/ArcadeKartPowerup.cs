@@ -49,8 +49,9 @@ public class ArcadeKartPowerup : MonoBehaviour {
 
             if (kart)
             { 
+                Debug.Log("Giving boost");
                 lastActivatedTimestamp = Time.time;
-                kart.AddPowerup(this.boostStats);
+                kart.AddPowerup(boostStats.Clone());
                 onPowerupActivated.Invoke();
                 isCoolingDown = true;
 
